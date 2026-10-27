@@ -67,10 +67,25 @@ def select_eligible_forecast(
     if forecast_candidates.empty:
         return None
 
+    if delivery_time.tzinfo is None:
+        delivery_time = delivery_time.replace(tzinfo=timezone.utc)
+    else:
+        delivery_time = delivery_time.astimezone(timezone.utc)
+
     cutoff_dt = get_cutoff_timestamp(delivery_time, cutoff_type)
 
+    candidates = forecast_candidates
+    # Ensure publishTime is tz-aware UTC for robust comparison
+    if pd.api.types.is_datetime64_any_dtype(candidates["publishTime"]):
+        if candidates["publishTime"].dt.tz is None:
+            candidates = candidates.copy()
+            candidates["publishTime"] = candidates["publishTime"].dt.tz_localize("UTC")
+        elif str(candidates["publishTime"].dt.tz) != "UTC":
+            candidates = candidates.copy()
+            candidates["publishTime"] = candidates["publishTime"].dt.tz_convert("UTC")
+
     # Filter forecasts published at or before cutoff
-    eligible = forecast_candidates[forecast_candidates["publishTime"] <= cutoff_dt]
+    eligible = candidates[candidates["publishTime"] <= cutoff_dt]
 
     if eligible.empty:
         return None

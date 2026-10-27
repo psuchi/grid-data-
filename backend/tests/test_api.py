@@ -75,3 +75,40 @@ def test_forecast_history_endpoint():
     assert data["deliveryTimeUtc"] == "2026-01-05T12:00:00+00:00"
     assert "records" in data
     assert data["totalSubmissions"] >= 0
+
+
+def test_forecasts_endpoint_no_post_cutoff_publications():
+    """Verify that all matched records strictly exclude post-cutoff submissions."""
+    resp = client.get("/api/forecasts?start_date=2026-01-01&end_date=2026-01-31&cutoff_type=day_ahead_1200")
+    assert resp.status_code == 200
+    data = resp.json()
+    matched_recs = [r for r in data["records"] if r["isMatched"]]
+    assert len(matched_recs) == 744
+
+    for r in matched_recs:
+        assert r["publishTimeUtc"] is not None
+        assert r["cutoffTimeUtc"] is not None
+        # Must be strictly at or before cutoff
+        assert r["publishTimeUtc"] <= r["cutoffTimeUtc"], (
+            f"Violation: publishTime {r['publishTimeUtc']} is after cutoff {r['cutoffTimeUtc']}"
+        )
+
+
+def test_forecast_history_cutoff_marking():
+    """Verify that forecast history correctly tags submissions before and after cutoff."""
+    resp = client.get("/api/forecast-history?delivery_time=2026-01-05T12:00:00Z&cutoff_type=day_ahead_1200")
+    assert resp.status_code == 200
+    data = resp.json()
+    cutoff_time = data["cutoffTimeUtc"]
+
+    for r in data["records"]:
+        if r["publishTimeUtc"] <= cutoff_time:
+            assert r["isBeforeCutoff"] is True
+        else:
+            assert r["isBeforeCutoff"] is False
+
+    # Selected forecast must be before cutoff
+    if data["selectedForecast"]:
+        assert data["selectedForecast"]["publishTimeUtc"] <= cutoff_time
+        assert data["selectedForecast"]["isBeforeCutoff"] is True
+
