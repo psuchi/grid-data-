@@ -331,7 +331,7 @@ The frontend and backend are decoupled and deployment-ready for independent host
    - `VITE_API_BASE_URL`: URL of your deployed Python backend (e.g. `https://windsight-api.onrender.com`).
 6. Deploy. Vercel will automatically read `frontend/vercel.json` for client-side single page app routing rewrites.
 
-### Backend Deployment (Render / Railway / Fly.io / AWS ECS)
+### Backend Deployment (Render)
 1. **Render / Railway:**
    - Select Docker deployment pointing to `backend/Dockerfile`.
    - Set Environment Variables:
